@@ -30,6 +30,12 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 
+[tool.coverage.run]
+source = ["skills/ez-stt/scripts", "skills/ez-tts/scripts"]
+
+[tool.coverage.report]
+show_missing = true
+
 [tool.isort]
 profile = "black"
 src_paths = "tests"
