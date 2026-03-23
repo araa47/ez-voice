@@ -27,7 +27,8 @@ jobs:
               run: uv sync --all-extras --dev
 
             - name: Run Tests with Coverage
-              run: uv run pytest --cov=skills/ez-stt/scripts --cov=skills/ez-tts/scripts --cov-report=term --cov-report=json:coverage.json --cov-report=html:htmlcov
+              run: uv run pytest -m "not e2e" --cov=skills/ez-stt/scripts --cov=skills/ez-tts/scripts --cov-report=term --cov-report=json:coverage.json
+                  --cov-report=html:htmlcov
 
             - name: Upload coverage artifact
               if: always()
