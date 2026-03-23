@@ -74,7 +74,3 @@ No installation needed. The script uses `uv run` with inline dependencies (PEP 7
 | Variable | Purpose |
 |----------|---------|
 | `HF_TOKEN` | Hugging Face token for voice cloning (not needed for preset voices) |
-
-## OpenClaw
-
-See [OPENCLAW.md](OPENCLAW.md) for OpenClaw-specific setup.

@@ -60,4 +60,4 @@ scripts/stt.py audio.ogg --quiet
 
 ## OpenClaw
 
-See [OPENCLAW.md](OPENCLAW.md) for OpenClaw-specific setup and `openclaw.json` configuration.
+See [OPENCLAW.md](references/OPENCLAW.md) for OpenClaw-specific setup and `openclaw.json` configuration.

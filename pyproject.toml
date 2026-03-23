@@ -29,6 +29,15 @@ dev = [
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+markers = [
+    "e2e: end-to-end tests that download and run real models (slow)",
+]
+
+[tool.coverage.run]
+source = ["skills/ez-stt/scripts", "skills/ez-tts/scripts"]
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.isort]
 profile = "black"
