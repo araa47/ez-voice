@@ -1,11 +1,11 @@
 import os
 import subprocess
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import tts as tts_mod  # ty: ignore[unresolved-import]
 from click.testing import CliRunner
-from skills.ez_tts.scripts.tts import (  # ty: ignore[unresolved-import]
+from tts import (  # ty: ignore[unresolved-import]
     PRESET_VOICES,
     SKILL_DIR,
     VOICES_DIR,
@@ -136,7 +136,7 @@ class TestMainCli:
         monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
         mock_tts_cls, mock_model = _make_mock_tts()
         modules, mock_scipy = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         with patch.dict("sys.modules", modules), patch.object(tts.subprocess, "run"):
             runner = CliRunner()
             result = runner.invoke(main, args)
@@ -208,7 +208,7 @@ class TestMainCli:
         voices_dir.mkdir()
         bundled = voices_dir / "custom_clone.ogg"
         bundled.write_bytes(b"fake ogg")
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         monkeypatch.setattr(tts, "VOICES_DIR", voices_dir)
         result, _, mock_model, _ = self._invoke(
             ["text", "-v", "custom_clone"], monkeypatch
@@ -223,7 +223,7 @@ class TestMainCli:
         voices_dir.mkdir()
         bundled = voices_dir / "custom_clone.ogg"
         bundled.write_bytes(b"fake ogg")
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         monkeypatch.setattr(tts, "VOICES_DIR", voices_dir)
         result, _, _, _ = self._invoke(
             ["text", "-v", "custom_clone", "-q"], monkeypatch
@@ -236,7 +236,7 @@ class TestMainCli:
         voices_dir = tmp_path / "voices"
         voices_dir.mkdir()
         (voices_dir / "my_clone.ogg").write_bytes(b"fake")
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         monkeypatch.setattr(tts, "VOICES_DIR", voices_dir)
         runner = CliRunner()
         result = runner.invoke(main, ["text", "-v", "bad_voice", "-q"])
@@ -250,7 +250,7 @@ class TestMainCli:
         Path(out_path).write_bytes(b"fake wav")
         mock_tts_cls, _ = _make_mock_tts()
         modules, _ = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         mock_subrun = MagicMock()
         with (
             patch.dict("sys.modules", modules),
@@ -269,7 +269,7 @@ class TestMainCli:
         out_path = str(tmp_path / "output.wav")
         mock_tts_cls, _ = _make_mock_tts()
         modules, _ = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         with (
             patch.dict("sys.modules", modules),
             patch.object(tts.subprocess, "run", side_effect=FileNotFoundError),
@@ -285,7 +285,7 @@ class TestMainCli:
         out_path = str(tmp_path / "output.wav")
         mock_tts_cls, _ = _make_mock_tts()
         modules, _ = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         with (
             patch.dict("sys.modules", modules),
             patch.object(
@@ -305,7 +305,7 @@ class TestMainCli:
         mock_tts_cls = MagicMock()
         mock_tts_cls.load_model.side_effect = Exception("Model load failed")
         modules, _ = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         with patch.dict("sys.modules", modules), patch.object(tts.subprocess, "run"):
             runner = CliRunner()
             result = runner.invoke(main, ["text", "-q"])
@@ -322,7 +322,7 @@ class TestMainCli:
         out_path = str(tmp_path / "output.wav")
         mock_tts_cls, _ = _make_mock_tts()
         modules, _ = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         mock_remove = MagicMock()
         with (
             patch.dict("sys.modules", modules),
@@ -341,7 +341,7 @@ class TestMainCli:
         Path(out_path).write_bytes(b"fake wav")
         mock_tts_cls, _ = _make_mock_tts()
         modules, _ = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         with patch.dict("sys.modules", modules), patch.object(tts.subprocess, "run"):
             runner = CliRunner()
             result = runner.invoke(main, ["text", "-o", out_path, "--ogg", "-q"])
@@ -353,7 +353,7 @@ class TestMainCli:
         out_path = str(tmp_path / "speech.ogg")
         mock_tts_cls, _ = _make_mock_tts()
         modules, mock_scipy = _mock_modules(mock_tts_cls)
-        tts = sys.modules["skills.ez_tts.scripts.tts"]
+        tts = tts_mod
         with patch.dict("sys.modules", modules), patch.object(tts.subprocess, "run"):
             runner = CliRunner()
             runner.invoke(main, ["text", "-o", out_path, "--ogg", "-q"])

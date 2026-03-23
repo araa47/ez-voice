@@ -1,11 +1,11 @@
 import os
-import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
+import stt as stt_mod  # ty: ignore[unresolved-import]
 from click.testing import CliRunner
-from skills.ez_stt.scripts.stt import (  # ty: ignore[unresolved-import]
+from stt import (  # ty: ignore[unresolved-import]
     BACKENDS,
     DEFAULT_BACKEND,
     BackendInfo,
@@ -174,7 +174,7 @@ class TestSendToMatrix:
         monkeypatch.setenv("MATRIX_HOMESERVER", "https://matrix.example.com")
         monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "test_token")
         monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         mock_put = MagicMock()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -193,7 +193,7 @@ class TestSendToMatrix:
         monkeypatch.setenv("MATRIX_HOMESERVER", "https://matrix.example.com")
         monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "test_token")
         monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         mock_put = MagicMock()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -211,7 +211,7 @@ class TestSendToMatrix:
         monkeypatch.setenv("MATRIX_HOMESERVER", "https://matrix.example.com")
         monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "test_token")
         monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         mock_put = MagicMock()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -226,7 +226,7 @@ class TestSendToMatrix:
         monkeypatch.setenv("MATRIX_HOMESERVER", "https://matrix.example.com")
         monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "test_token")
         monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         with (
             patch.object(
                 stt.requests, "put", side_effect=Exception("Connection failed")
@@ -239,7 +239,7 @@ class TestSendToMatrix:
         monkeypatch.setenv("MATRIX_HOMESERVER", "https://matrix.example.com")
         monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "test_token")
         monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         with (
             patch.object(
                 stt.requests, "put", side_effect=Exception("Connection failed")
@@ -252,7 +252,7 @@ class TestSendToMatrix:
         monkeypatch.setenv("MATRIX_HOMESERVER", "https://matrix.example.com/")
         monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "test_token")
         monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         mock_put = MagicMock()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -301,7 +301,7 @@ class TestMainCli:
     def _invoke(self, args, sample_wav, recognize_text="hello world"):
         mock_onnx, mock_model = _make_mock_onnx()
         mock_model.recognize.return_value = recognize_text
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         with (
             patch.dict("sys.modules", {"onnx_asr": mock_onnx}),
             patch.object(stt.subprocess, "run"),
@@ -367,7 +367,7 @@ class TestMainCli:
     def test_with_room_id(self, sample_wav):
         mock_onnx, mock_model = _make_mock_onnx()
         mock_model.recognize.return_value = "hello"
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         with (
             patch.dict("sys.modules", {"onnx_asr": mock_onnx}),
             patch.object(stt.subprocess, "run"),
@@ -383,7 +383,7 @@ class TestMainCli:
     def test_room_id_not_called_on_empty_text(self, sample_wav):
         mock_onnx, mock_model = _make_mock_onnx()
         mock_model.recognize.return_value = "   "
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         with (
             patch.dict("sys.modules", {"onnx_asr": mock_onnx}),
             patch.object(stt.subprocess, "run"),
@@ -403,7 +403,7 @@ class TestMainCli:
 
     def test_ffmpeg_called_correctly(self, sample_wav):
         mock_onnx, _ = _make_mock_onnx()
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         mock_subprocess_run = MagicMock()
         with (
             patch.dict("sys.modules", {"onnx_asr": mock_onnx}),
@@ -421,7 +421,7 @@ class TestMainCli:
 
     def test_temp_file_cleanup(self, sample_wav):
         mock_onnx, _ = _make_mock_onnx()
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         created_temps = []
         orig_named_temp = tempfile.NamedTemporaryFile
 
@@ -444,7 +444,7 @@ class TestMainCli:
     def test_room_id_quiet_false(self, sample_wav):
         mock_onnx, mock_model = _make_mock_onnx()
         mock_model.recognize.return_value = "hello"
-        stt = sys.modules["skills.ez_stt.scripts.stt"]
+        stt = stt_mod
         with (
             patch.dict("sys.modules", {"onnx_asr": mock_onnx}),
             patch.object(stt.subprocess, "run"),
