@@ -15,6 +15,9 @@ dependencies = [
     "soundfile>=0.13.1",
 ]
 
+[tool.uv]
+exclude-newer = false
+
 [project.optional-dependencies]
 dev = [
     "ruff>=0.15.4",
