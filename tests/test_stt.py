@@ -51,10 +51,8 @@ class TestBackendConfig:
 
     def test_whisper_models(self):
         models = BACKENDS["whisper"]["models"]
-        assert "tiny" in models
-        assert "base" in models
-        assert "small" in models
-        assert "large-v3-turbo" in models
+        assert list(models) == ["base"]
+        assert models["base"] == "whisper-base"
 
     def test_backend_info_type(self):
         info: BackendInfo = {
@@ -278,10 +276,7 @@ class TestGetAllModels:
 
     def test_contains_whisper_models(self):
         models = get_all_models()
-        assert "tiny" in models
         assert "base" in models
-        assert "small" in models
-        assert "large-v3-turbo" in models
 
     def test_count(self):
         models = get_all_models()
@@ -339,11 +334,11 @@ class TestMainCli:
 
     def test_specific_model(self, sample_wav):
         result, mock_onnx, _ = self._invoke(
-            [sample_wav, "-b", "whisper", "-m", "tiny", "-q"], sample_wav
+            [sample_wav, "-b", "whisper", "-m", "base", "-q"], sample_wav
         )
         assert result.exit_code == 0
         mock_onnx.load_model.assert_called_once_with(
-            "whisper-tiny", quantization="int8"
+            "whisper-base", quantization="int8"
         )
 
     def test_no_int8(self, sample_wav):

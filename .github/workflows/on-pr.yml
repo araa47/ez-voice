@@ -20,6 +20,11 @@ jobs:
             contents: read
             id-token: write
 
+    e2e:
+        uses: ./.github/workflows/job-e2e.yml
+        secrets:
+            HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
     coverage-comment:
         needs: test
         uses: ./.github/workflows/job-coverage-comment.yml

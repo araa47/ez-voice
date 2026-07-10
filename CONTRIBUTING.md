@@ -4,7 +4,7 @@
 2. Make your changes.
 3. Ensure pre-commit hooks pass: `prek run --all-files`
 4. Ensure unit tests pass: `uv run -m pytest -m "not e2e"`
-5. Run end-to-end tests (downloads real models, slow): `uv run -m pytest -m e2e`
+5. Optionally run fast e2e (downloads models once, then cached): `uv run -m pytest -m "e2e and not e2e_slow"`
 6. Submit a PR.
 
 ## Testing
@@ -19,13 +19,19 @@ uv run -m pytest -m "not e2e"
 
 ### End-to-end tests
 
-E2E tests download and run real STT/TTS models. They are slow but verify
-that the full pipeline works. Run them before submitting changes that touch
-model loading, audio processing, or CLI argument handling:
+E2E tests download and run real STT/TTS models. CI runs the **fast** subset on
+every PR (TTS → STT roundtrip + whisper-base fixture), with Hugging Face /
+pocket-tts model caches so cold downloads only happen once.
 
 ```bash
-uv run -m pytest -m e2e
+# Fast suite (what CI runs)
+uv run -m pytest -m "e2e and not e2e_slow"
+
+# Exhaustive matrix (all preset voices + all STT models)
+uv run -m pytest -m e2e_slow
 ```
+
+Set `HF_TOKEN` (Hugging Face) for reliable model downloads / voice cloning.
 
 ### Coverage
 
