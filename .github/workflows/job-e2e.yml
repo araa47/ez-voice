@@ -10,7 +10,7 @@ on:
 jobs:
     e2e:
         runs-on: ubuntu-latest
-        timeout-minutes: 20
+        timeout-minutes: 30
         permissions:
             contents: read
         env:
@@ -42,8 +42,10 @@ jobs:
                   path: |
                       ~/.cache/huggingface
                       ~/.cache/pocket_tts
-                  key: e2e-models-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+                  # v3: english + cloning weights + spanish (+ whisper)
+                  key: e2e-models-v3-${{ runner.os }}-${{ hashFiles('uv.lock') }}
                   restore-keys: |
+                      e2e-models-v3-${{ runner.os }}-
                       e2e-models-${{ runner.os }}-
 
             - name: Verify model cache
@@ -56,13 +58,20 @@ jobs:
                   echo "::group::Cached hub repos"
                   ls -1 "$HOME/.cache/huggingface/hub" 2>/dev/null || echo "(empty)"
                   echo "::endgroup::"
+                  hub_bytes=$(du -sb "$HOME/.cache/huggingface/hub" 2>/dev/null | awk '{print $1}')
+                  hub_bytes=${hub_bytes:-0}
+                  echo "hub-bytes=$hub_bytes"
                   if [ "${{ steps.model-cache.outputs.cache-hit }}" != "true" ]; then
                     echo "Model cache MISS — cold download expected; cache will save after tests"
                   else
                     echo "Model cache HIT"
-                    # Sanity-check that restored cache actually has model blobs
-                    if ! find "$HOME/.cache/huggingface/hub" -type f \( -name '*.onnx' -o -name '*.safetensors' -o -name '*.bin' -o -name '*.pt' \) 2>/dev/null | head -1 | grep -q .; then
-                      echo "::warning::Cache hit reported but no model weight files found under ~/.cache/huggingface/hub"
+                    # HF hub stores weights as extensionless content-addressed blobs/
+                    if [ "$hub_bytes" -lt 50000000 ]; then
+                      echo "::warning::Cache hit but hub cache is only ${hub_bytes} bytes (expected >50MB)"
+                    elif ! ls -1 "$HOME/.cache/huggingface/hub" 2>/dev/null | grep -q '^models--'; then
+                      echo "::warning::Cache hit but no models--* repos under ~/.cache/huggingface/hub"
+                    else
+                      echo "Model cache looks healthy (>50MB with hub repos)"
                     fi
                   fi
 

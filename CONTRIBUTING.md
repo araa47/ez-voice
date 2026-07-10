@@ -20,8 +20,8 @@ uv run -m pytest -m "not e2e"
 ### End-to-end tests
 
 E2E tests download and run real STT/TTS models. CI runs the **fast** subset on
-every PR (TTS → STT roundtrip + whisper-base fixture), with Hugging Face /
-pocket-tts model caches so cold downloads only happen once.
+every PR (English roundtrip, voice cloning, Spanish, whisper-base fixture), with
+Hugging Face / pocket-tts model caches so cold downloads only happen once.
 
 ```bash
 # Fast suite (what CI runs)
