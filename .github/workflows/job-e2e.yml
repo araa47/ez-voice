@@ -47,4 +47,15 @@ jobs:
                       e2e-models-${{ runner.os }}-
 
             - name: Run fast e2e tests
-              run: uv run pytest -m "e2e and not e2e_slow" -q --tb=short
+              run: >
+                  uv run pytest -m "e2e and not e2e_slow" -q --tb=short
+                  --junitxml=e2e-results.xml
+
+            - name: Upload e2e artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: e2e-report
+                  path: e2e-results.xml
+                  retention-days: 30
+                  if-no-files-found: warn

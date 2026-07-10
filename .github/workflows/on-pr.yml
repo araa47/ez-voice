@@ -25,8 +25,10 @@ jobs:
         secrets:
             HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
-    coverage-comment:
-        needs: test
-        uses: ./.github/workflows/job-coverage-comment.yml
+    test-report:
+        needs: [test, e2e]
+        if: always() && needs.test.result != 'cancelled'
+        uses: ./.github/workflows/job-test-report.yml
         permissions:
+            actions: read
             pull-requests: write
