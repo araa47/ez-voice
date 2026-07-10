@@ -45,10 +45,7 @@ scripts/stt.py audio.ogg --quiet
 ### Whisper
 | Model | Description |
 |-------|-------------|
-| tiny | Fastest, lower accuracy |
-| **base** (default) | Good balance |
-| small | Better accuracy |
-| large-v3-turbo | Best quality, slower |
+| **base** (default) | Fast multilingual (only Whisper variant in onnx-asr) |
 
 ## Benchmark (24s audio)
 

@@ -40,10 +40,8 @@ BACKENDS: dict[str, BackendInfo] = {
     },
     "whisper": {
         "models": {
-            "tiny": "whisper-tiny",
+            # onnx-asr >=0.11 only ships whisper-base among Whisper variants
             "base": "whisper-base",
-            "small": "whisper-small",
-            "large-v3-turbo": "whisper-large-v3-turbo",
         },
         "default": "base",
         "description": "OpenAI Whisper - fastest, 99 languages",

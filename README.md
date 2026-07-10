@@ -9,7 +9,7 @@ Local speech-to-text and text-to-speech skills for [Claude Code](https://docs.an
 | **ez-stt** | Local speech-to-text using Parakeet (best English accuracy) or Whisper (fastest, multilingual) |
 | **ez-tts** | Local text-to-speech using Kyutai Pocket TTS with 8 preset voices and voice cloning |
 
-Both skills run fully offline after initial model download. No API keys needed (except for TTS voice cloning which requires a Hugging Face token).
+Both skills run fully offline after initial model download. TTS supports english, french, german, portuguese, italian, and spanish. A Hugging Face token (`HF_TOKEN`) is needed for model download / voice cloning (accept terms on https://huggingface.co/kyutai/pocket-tts).
 
 ## Installation
 
@@ -43,8 +43,9 @@ scripts/stt.py audio.ogg -b whisper
 # Generate speech with default voice
 uv run scripts/tts.py "Hello, world"
 
-# Choose a voice
+# Choose a voice / language
 uv run scripts/tts.py "Hello, world" --voice marius
+uv run scripts/tts.py "Hola mundo" --language spanish
 
 # Output as OGG
 uv run scripts/tts.py "Hello, world" --ogg

@@ -6,31 +6,52 @@ from unittest.mock import MagicMock, patch
 import tts as tts_mod  # ty: ignore[unresolved-import]
 from click.testing import CliRunner
 from tts import (  # ty: ignore[unresolved-import]
+    LANGUAGES,
     PRESET_VOICES,
     SKILL_DIR,
     VOICES_DIR,
+    default_voice_for_language,
     load_env,
     main,
+    resolve_language,
 )
 
 
 class TestConstants:
     def test_preset_voices_list(self):
         assert isinstance(PRESET_VOICES, list)
-        assert len(PRESET_VOICES) == 8
-
-    def test_preset_voices_contents(self):
-        expected = [
+        assert len(PRESET_VOICES) >= 8
+        for voice in (
             "alba",
             "marius",
-            "javert",
-            "jean",
-            "fantine",
-            "cosette",
-            "eponine",
-            "azelma",
-        ]
-        assert PRESET_VOICES == expected
+            "estelle",
+            "lola",
+            "giovanni",
+            "juergen",
+            "rafael",
+        ):
+            assert voice in PRESET_VOICES
+
+    def test_languages_include_core(self):
+        for lang in (
+            "english",
+            "spanish",
+            "german",
+            "italian",
+            "portuguese",
+            "french_24l",
+        ):
+            assert lang in LANGUAGES
+
+    def test_default_voice_for_language(self):
+        assert default_voice_for_language("spanish") == "lola"
+        assert default_voice_for_language("french_24l") == "estelle"
+        assert default_voice_for_language("english") == "alba"
+
+    def test_resolve_language_alias(self):
+        assert resolve_language("french") == "french_24l"
+        assert resolve_language("es") == "spanish"
+        assert resolve_language("english") == "english"
 
     def test_skill_dir(self):
         assert SKILL_DIR == Path(__file__).parent.parent / "skills" / "ez-tts"
@@ -147,7 +168,7 @@ class TestMainCli:
             ["hello world", "-v", "alba", "-q"], monkeypatch
         )
         assert result.exit_code == 0
-        mock_tts_cls.load_model.assert_called_once()
+        mock_tts_cls.load_model.assert_called_once_with(language="english")
         mock_model.get_state_for_audio_prompt.assert_called_once_with("alba")
         mock_model.generate_audio.assert_called_once()
 
@@ -155,6 +176,29 @@ class TestMainCli:
         result, _, mock_model, _ = self._invoke(["test text", "-q"], monkeypatch)
         assert result.exit_code == 0
         mock_model.get_state_for_audio_prompt.assert_called_once_with("alba")
+
+    def test_spanish_language(self, monkeypatch):
+        result, mock_tts_cls, mock_model, _ = self._invoke(
+            ["Hola mundo", "-l", "spanish", "-q"], monkeypatch
+        )
+        assert result.exit_code == 0
+        mock_tts_cls.load_model.assert_called_once_with(language="spanish")
+        mock_model.get_state_for_audio_prompt.assert_called_once_with("lola")
+
+    def test_french_alias(self, monkeypatch):
+        result, mock_tts_cls, mock_model, _ = self._invoke(
+            ["Bonjour", "-l", "french", "-v", "estelle", "-q"], monkeypatch
+        )
+        assert result.exit_code == 0
+        mock_tts_cls.load_model.assert_called_once_with(language="french_24l")
+        mock_model.get_state_for_audio_prompt.assert_called_once_with("estelle")
+
+    def test_unknown_language(self, monkeypatch):
+        monkeypatch.setattr(Path, "home", lambda: Path("/nonexistent"))
+        runner = CliRunner()
+        result = runner.invoke(main, ["text", "-l", "klingon", "-q"])
+        assert result.exit_code != 0
+        assert "Unknown language" in result.output
 
     def test_custom_output_path(self, tmp_path, monkeypatch):
         out_path = str(tmp_path / "output.wav")

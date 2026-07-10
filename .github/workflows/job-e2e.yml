@@ -1,0 +1,103 @@
+---
+name: e2e
+
+on:
+    workflow_call:
+        secrets:
+            HF_TOKEN:
+                required: true
+
+jobs:
+    e2e:
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read
+        env:
+            HF_TOKEN: ${{ secrets.HF_TOKEN }}
+            HF_HUB_DISABLE_PROGRESS_BARS: '1'
+            PYTHONWARNINGS: ignore
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install ffmpeg
+              run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v5
+              with:
+                  version: latest
+                  enable-cache: true
+                  # Bust the previously saved empty UV cache (~1.6KB) so torch wheels persist.
+                  cache-suffix: e2e-v2
+                  cache-dependency-glob: uv.lock
+
+            - name: Set up Python
+              run: uv python install
+
+            - name: Cache Hugging Face and pocket-tts models
+              id: model-cache
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cache/huggingface
+                      ~/.cache/pocket_tts
+                  # v3: english + cloning weights + spanish (+ whisper)
+                  key: e2e-models-v3-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+                  restore-keys: |
+                      e2e-models-v3-${{ runner.os }}-
+                      e2e-models-${{ runner.os }}-
+
+            - name: Verify model cache
+              run: |
+                  echo "model-cache-hit=${{ steps.model-cache.outputs.cache-hit }}"
+                  mkdir -p "$HOME/.cache/huggingface/hub" "$HOME/.cache/pocket_tts"
+                  echo "::group::Cache directory sizes"
+                  du -sh "$HOME/.cache/huggingface" "$HOME/.cache/huggingface/hub" "$HOME/.cache/pocket_tts" 2>/dev/null || true
+                  echo "::endgroup::"
+                  echo "::group::Cached hub repos"
+                  ls -1 "$HOME/.cache/huggingface/hub" 2>/dev/null || echo "(empty)"
+                  echo "::endgroup::"
+                  hub_bytes=$(du -sb "$HOME/.cache/huggingface/hub" 2>/dev/null | awk '{print $1}')
+                  hub_bytes=${hub_bytes:-0}
+                  echo "hub-bytes=$hub_bytes"
+                  if [ "${{ steps.model-cache.outputs.cache-hit }}" != "true" ]; then
+                    echo "Model cache MISS — cold download expected; cache will save after tests"
+                  else
+                    echo "Model cache HIT"
+                    # HF hub stores weights as extensionless content-addressed blobs/
+                    if [ "$hub_bytes" -lt 50000000 ]; then
+                      echo "::warning::Cache hit but hub cache is only ${hub_bytes} bytes (expected >50MB)"
+                    elif ! ls -1 "$HOME/.cache/huggingface/hub" 2>/dev/null | grep -q '^models--'; then
+                      echo "::warning::Cache hit but no models--* repos under ~/.cache/huggingface/hub"
+                    else
+                      echo "Model cache looks healthy (>50MB with hub repos)"
+                    fi
+                  fi
+
+            - name: Install the project
+              run: uv sync --all-extras --dev
+
+            - name: Run fast e2e tests
+              run: >
+                  uv run pytest -m "e2e and not e2e_slow" -q --tb=short
+                  --junitxml=e2e-results.xml
+
+            - name: Report cache contents after tests
+              if: always()
+              run: |
+                  echo "::group::Post-test cache sizes"
+                  du -sh "$HOME/.cache/huggingface" "$HOME/.cache/huggingface/hub" "$HOME/.cache/pocket_tts" 2>/dev/null || true
+                  ls -1 "$HOME/.cache/huggingface/hub" 2>/dev/null || true
+                  echo "::endgroup::"
+
+            - name: Upload e2e artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: e2e-report
+                  path: |
+                      e2e-results.xml
+                      e2e-summary.json
+                  retention-days: 30
+                  if-no-files-found: warn
