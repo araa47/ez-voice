@@ -96,6 +96,8 @@ jobs:
               uses: actions/upload-artifact@v4
               with:
                   name: e2e-report
-                  path: e2e-results.xml
+                  path: |
+                      e2e-results.xml
+                      e2e-summary.json
                   retention-days: 30
                   if-no-files-found: warn

@@ -200,3 +200,7 @@ profile.json
 # UV cache
 # Ignore uv_playground.egg-info directory
 uv_playground.egg-info/
+
+# Local e2e CI artifacts
+e2e-summary.json
+e2e-results.xml

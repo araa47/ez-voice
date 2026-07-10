@@ -31,7 +31,37 @@ jobs:
                       const fs = require('fs');
                       const path = require('path');
 
-                      function coverageSection() {
+                      const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+                      const shortSha = context.sha.slice(0, 7);
+                      const commitUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}`;
+
+                      async function jobLinks() {
+                        const links = { run: runUrl };
+                        try {
+                          const { data } = await github.rest.actions.listJobsForWorkflowRun({
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            run_id: context.runId,
+                            per_page: 50,
+                          });
+                          for (const job of data.jobs || []) {
+                            const name = (job.name || '').toLowerCase();
+                            if (name.includes('e2e') && !links.e2e) links.e2e = job.html_url;
+                            else if (name.includes('test-report')) links.report = job.html_url;
+                            else if ((name === 'test / test' || name.endsWith('/ test') || name === 'test') && !links.unit) {
+                              links.unit = job.html_url;
+                            } else if (name.includes('prek') && !links.prek) links.prek = job.html_url;
+                            else if (name.includes('coverage') && !name.includes('test-report') && !links.unit) {
+                              links.unit = job.html_url;
+                            }
+                          }
+                        } catch (err) {
+                          core.warning(`Could not list workflow jobs: ${err.message}`);
+                        }
+                        return links;
+                      }
+
+                      function coverageSection(links) {
                         const coveragePath = path.join('coverage', 'coverage.json');
                         if (!fs.existsSync(coveragePath)) {
                           return [
@@ -56,8 +86,12 @@ jobs:
                           fileRows += `| \`${filePath}\` | ${filePct}% |\n`;
                         }
 
+                        const unitLink = links.unit
+                          ? ` · [unit job](${links.unit})`
+                          : '';
+
                         return [
-                          `### ${badge} Coverage`,
+                          `### ${badge} Coverage${unitLink}`,
                           '',
                           `| Metric | Value |`,
                           `|--------|-------|`,
@@ -73,70 +107,103 @@ jobs:
                         ];
                       }
 
-                      function e2eSection() {
+                      function statusEmoji(outcome) {
+                        if (outcome === 'passed') return '✅';
+                        if (outcome === 'failed') return '❌';
+                        if (outcome === 'skipped') return '⏭️';
+                        return '❔';
+                      }
+
+                      function e2eSection(links) {
+                        const summaryPath = path.join('e2e', 'e2e-summary.json');
                         const xmlPath = path.join('e2e', 'e2e-results.xml');
-                        if (!fs.existsSync(xmlPath)) {
+                        const e2eLink = links.e2e ? ` · [e2e job](${links.e2e})` : '';
+
+                        let scenarios = [];
+                        if (fs.existsSync(summaryPath)) {
+                          const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+                          scenarios = summary.scenarios || [];
+                        } else if (fs.existsSync(xmlPath)) {
+                          // Fallback: parse junit only
+                          const xml = fs.readFileSync(xmlPath, 'utf8');
+                          for (const m of xml.matchAll(/<testcase\b([^>]*)>([\s\S]*?)<\/testcase>|<testcase\b([^/]*)\/>/g)) {
+                            const caseAttrs = m[1] || m[3] || '';
+                            const body = m[2] || '';
+                            const name = (caseAttrs.match(/\bname="([^"]*)"/) || [])[1] || 'unknown';
+                            const classname = (caseAttrs.match(/\bclassname="([^"]*)"/) || [])[1] || '';
+                            const caseTime = (caseAttrs.match(/\btime="([^"]*)"/) || [])[1] || '0';
+                            let outcome = 'passed';
+                            if (/<failure\b/.test(body) || /<error\b/.test(body)) outcome = 'failed';
+                            else if (/<skipped\b/.test(body)) outcome = 'skipped';
+                            const shortClass = classname.split('.').pop() || classname;
+                            scenarios.push({
+                              key: `${shortClass}::${name}`,
+                              title: `${shortClass}::${name}`,
+                              covers: '',
+                              stack: '',
+                              outcome,
+                              duration: Number(caseTime),
+                            });
+                          }
+                        } else {
                           return [
-                            '### E2E',
+                            `### E2E${e2eLink}`,
                             '',
-                            '_E2E results not available yet (job may still be running or failed before writing results)._',
+                            '_E2E results not available (job may have failed before writing results)._',
                             '',
                           ];
                         }
 
-                        const xml = fs.readFileSync(xmlPath, 'utf8');
-                        const suiteMatch = xml.match(/<testsuite\b([^>]*)>/);
-                        const attrs = Object.fromEntries(
-                          [...(suiteMatch?.[1].matchAll(/(\w+)="([^"]*)"/g) || [])].map(m => [m[1], m[2]])
-                        );
-
-                        const tests = Number(attrs.tests || 0);
-                        const failures = Number(attrs.failures || 0);
-                        const errors = Number(attrs.errors || 0);
-                        const skipped = Number(attrs.skipped || 0);
-                        const time = Number(attrs.time || 0).toFixed(1);
-                        const passed = Math.max(0, tests - failures - errors - skipped);
-                        const ok = failures === 0 && errors === 0 && tests > 0;
+                        const passed = scenarios.filter(s => s.outcome === 'passed').length;
+                        const failed = scenarios.filter(s => s.outcome === 'failed').length;
+                        const skipped = scenarios.filter(s => s.outcome === 'skipped').length;
+                        const time = scenarios.reduce((acc, s) => acc + Number(s.duration || 0), 0).toFixed(1);
+                        const ok = failed === 0 && scenarios.length > 0;
                         const badge = ok ? '🟢' : '🔴';
 
-                        const cases = [];
-                        for (const m of xml.matchAll(/<testcase\b([^>]*)>([\s\S]*?)<\/testcase>|<testcase\b([^/]*)\/>/g)) {
-                          const caseAttrs = m[1] || m[3] || '';
-                          const body = m[2] || '';
-                          const name = (caseAttrs.match(/\bname="([^"]*)"/) || [])[1] || 'unknown';
-                          const classname = (caseAttrs.match(/\bclassname="([^"]*)"/) || [])[1] || '';
-                          const caseTime = (caseAttrs.match(/\btime="([^"]*)"/) || [])[1] || '0';
-                          let status = '✅ pass';
-                          if (/<failure\b/.test(body) || /<error\b/.test(body)) status = '❌ fail';
-                          else if (/<skipped\b/.test(body)) status = '⏭️ skip';
-                          const shortClass = classname.split('.').pop() || classname;
-                          cases.push(`| \`${shortClass}::${name}\` | ${status} | ${Number(caseTime).toFixed(1)}s |`);
-                        }
+                        const rows = scenarios.map(s => {
+                          const title = s.title || s.key;
+                          const stack = s.stack ? `<br><sub>${s.stack}</sub>` : '';
+                          const covers = (s.covers || '').replace(/\n/g, ' ');
+                          return `| ${statusEmoji(s.outcome)} **${title}**${stack} | ${covers} | ${Number(s.duration || 0).toFixed(1)}s |`;
+                        });
 
                         return [
-                          `### ${badge} E2E`,
+                          `### ${badge} E2E${e2eLink}`,
                           '',
                           `| Metric | Value |`,
                           `|--------|-------|`,
                           `| **Result** | **${ok ? 'passed' : 'failed'}** |`,
                           `| Passed | ${passed} |`,
-                          `| Failed | ${failures + errors} |`,
+                          `| Failed | ${failed} |`,
                           `| Skipped | ${skipped} |`,
                           `| Duration | ${time}s |`,
                           '',
-                          cases.length
-                            ? '#### Tests\n\n| Test | Status | Time |\n|------|--------|------|\n' + cases.join('\n')
-                            : '_No e2e testcases recorded._',
+                          '#### What was tested',
+                          '',
+                          '| Scenario | Details | Time |',
+                          '|----------|---------|------|',
+                          ...rows,
                           '',
                         ];
                       }
 
+                      const links = await jobLinks();
+                      const linkLine = [
+                        `[Workflow run](${links.run})`,
+                        links.prek ? `[prek](${links.prek})` : null,
+                        links.unit ? `[unit](${links.unit})` : null,
+                        links.e2e ? `[e2e](${links.e2e})` : null,
+                      ].filter(Boolean).join(' · ');
+
                       const body = [
                         '## Test Report',
                         '',
-                        ...coverageSection(),
-                        ...e2eSection(),
-                        `> Report from commit ${context.sha.slice(0, 7)}`,
+                        linkLine,
+                        '',
+                        ...coverageSection(links),
+                        ...e2eSection(links),
+                        `> Report from commit [\`${shortSha}\`](${commitUrl})`,
                       ].join('\n');
 
                       const { data: comments } = await github.rest.issues.listComments({
@@ -148,9 +215,6 @@ jobs:
                       const existing = comments.find(c =>
                         c.user.type === 'Bot' && (
                           c.body.includes('## Test Report') ||
-                          c.body.includes('## 🟢 Coverage Report') ||
-                          c.body.includes('## 🟡 Coverage Report') ||
-                          c.body.includes('## 🔴 Coverage Report') ||
                           c.body.includes('Coverage Report')
                         )
                       );
