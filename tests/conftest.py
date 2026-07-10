@@ -33,8 +33,6 @@ def speech_wav():
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """Write e2e-summary.json for the CI Test Report when e2e tests ran."""
-    from tests.e2e_scenarios import E2E_SCENARIOS
-
     e2e_items = [
         item
         for item in session.items
@@ -44,12 +42,23 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     if not e2e_items:
         return
 
+    # Load via file path so this works even when `tests` isn't importable as a package.
+    import importlib.util
+
+    scenarios_path = Path(__file__).parent / "e2e_scenarios.py"
+    spec = importlib.util.spec_from_file_location("e2e_scenarios", scenarios_path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    e2e_scenarios: dict[str, dict[str, str]] = module.E2E_SCENARIOS
+
     reports = getattr(session.config, "_e2e_reports", {})
     scenarios = []
     for item in e2e_items:
         cls = getattr(item, "cls", None)
         key = f"{cls.__name__}::{item.name}" if cls is not None else item.name
-        meta = E2E_SCENARIOS.get(key, {})
+        meta = e2e_scenarios.get(key, {})
         rep = reports.get(item.nodeid, {})
         func = getattr(item, "function", None)
         docstring = (func.__doc__ or "") if func is not None else ""
@@ -70,8 +79,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         "exitstatus": exitstatus,
         "scenarios": scenarios,
     }
-    out = Path("e2e-summary.json")
-    out.write_text(json.dumps(summary, indent=2) + "\n")
+    Path("e2e-summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
 
 @pytest.hookimpl(hookwrapper=True)
