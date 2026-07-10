@@ -28,15 +28,15 @@ jobs:
               with:
                   version: latest
                   enable-cache: true
+                  # Bust the previously saved empty UV cache (~1.6KB) so torch wheels persist.
+                  cache-suffix: e2e-v2
                   cache-dependency-glob: uv.lock
 
             - name: Set up Python
               run: uv python install
 
-            - name: Install the project
-              run: uv sync --all-extras --dev
-
             - name: Cache Hugging Face and pocket-tts models
+              id: model-cache
               uses: actions/cache@v4
               with:
                   path: |
@@ -46,10 +46,41 @@ jobs:
                   restore-keys: |
                       e2e-models-${{ runner.os }}-
 
+            - name: Verify model cache
+              run: |
+                  echo "model-cache-hit=${{ steps.model-cache.outputs.cache-hit }}"
+                  mkdir -p "$HOME/.cache/huggingface/hub" "$HOME/.cache/pocket_tts"
+                  echo "::group::Cache directory sizes"
+                  du -sh "$HOME/.cache/huggingface" "$HOME/.cache/huggingface/hub" "$HOME/.cache/pocket_tts" 2>/dev/null || true
+                  echo "::endgroup::"
+                  echo "::group::Cached hub repos"
+                  ls -1 "$HOME/.cache/huggingface/hub" 2>/dev/null || echo "(empty)"
+                  echo "::endgroup::"
+                  if [ "${{ steps.model-cache.outputs.cache-hit }}" != "true" ]; then
+                    echo "Model cache MISS — cold download expected; cache will save after tests"
+                  else
+                    echo "Model cache HIT"
+                    # Sanity-check that restored cache actually has model blobs
+                    if ! find "$HOME/.cache/huggingface/hub" -type f \( -name '*.onnx' -o -name '*.safetensors' -o -name '*.bin' -o -name '*.pt' \) 2>/dev/null | head -1 | grep -q .; then
+                      echo "::warning::Cache hit reported but no model weight files found under ~/.cache/huggingface/hub"
+                    fi
+                  fi
+
+            - name: Install the project
+              run: uv sync --all-extras --dev
+
             - name: Run fast e2e tests
               run: >
                   uv run pytest -m "e2e and not e2e_slow" -q --tb=short
                   --junitxml=e2e-results.xml
+
+            - name: Report cache contents after tests
+              if: always()
+              run: |
+                  echo "::group::Post-test cache sizes"
+                  du -sh "$HOME/.cache/huggingface" "$HOME/.cache/huggingface/hub" "$HOME/.cache/pocket_tts" 2>/dev/null || true
+                  ls -1 "$HOME/.cache/huggingface/hub" 2>/dev/null || true
+                  echo "::endgroup::"
 
             - name: Upload e2e artifact
               if: always()
