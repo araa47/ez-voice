@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#     "pocket-tts>=2.1.0",
+#     "pocket-tts>=4.0.1",
 #     "scipy",
 #     "soundfile",
 #     "click",
